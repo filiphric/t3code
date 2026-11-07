@@ -1579,7 +1579,10 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
 }
 
 function AllowedAppSchemesSetting() {
-  const schemes = useClientSettings((settings) => settings.allowedAppSchemes);
+  const storedSchemes = useClientSettings((settings) => settings.allowedAppSchemes);
+  const schemes = [
+    ...new Set(storedSchemes.map(normalizeAppScheme).filter((scheme) => scheme !== null)),
+  ];
   const updateSettings = useUpdatePrimarySettings();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -1650,6 +1653,13 @@ function AllowedAppSchemesSetting() {
         {adding ? (
           <form
             className="space-y-2"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                cancel();
+              }
+            }}
             onSubmit={(event) => {
               event.preventDefault();
               add();
@@ -1671,13 +1681,6 @@ function AllowedAppSchemesSetting() {
                   onValueChange={(value) => {
                     setDraft(value);
                     setError(null);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      cancel();
-                    }
                   }}
                 />
               </div>
