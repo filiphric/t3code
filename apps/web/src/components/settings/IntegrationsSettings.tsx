@@ -1583,7 +1583,7 @@ function AllowedAppSchemesSetting() {
   return (
     <SettingsRow
       title="Allowed app schemes"
-      description="Allow chat links to open apps on this device. Enter scheme names separated by commas, such as things, obsidian. Removing a name revokes permission. Links may perform actions in the app."
+      description="Allow app links on this device. Enter names or links separated by commas, e.g. things or things:///. Remove a name to revoke permission. Links may perform actions in the app."
       control={
         <DraftInput
           aria-label="Allowed app schemes"
@@ -1594,7 +1594,12 @@ function AllowedAppSchemesSetting() {
               .map((entry) => entry.trim())
               .filter(Boolean);
             if (values.some((entry) => normalizeAppScheme(entry) === null)) {
-              toastManager.add({ type: "error", title: "Invalid or reserved app scheme" });
+              toastManager.add({
+                type: "error",
+                title: "Invalid or reserved app scheme",
+                description:
+                  "Enter a scheme such as things, or an app link such as things:///show?id=today. System and executable schemes cannot be allowed.",
+              });
               return;
             }
             updateSettings({

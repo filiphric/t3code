@@ -26,7 +26,8 @@ const RESERVED_SCHEMES = new Set([
 ]);
 
 export function normalizeAppScheme(value: string): string | null {
-  const scheme = value.trim().toLowerCase().replace(/:$/, "");
+  const match = /^([a-z][a-z0-9+.-]*)(?::(?:\/\/[^\s]*)?)?$/i.exec(value.trim());
+  const scheme = match?.[1]?.toLowerCase() ?? "";
   return /^[a-z][a-z0-9+.-]*$/.test(scheme) &&
     scheme.length > 1 &&
     !scheme.startsWith("ms-") &&

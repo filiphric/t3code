@@ -12,7 +12,15 @@ describe("app link policy", () => {
       expect(isAllowedAppHref(href, ["Things:", "obsidian"])).toBe(true);
       expect(isAllowedAppHref(href, [])).toBe(false);
     }
-    expect(normalizeAppScheme(" Things: ")).toBe("things");
+    for (const value of [
+      "things",
+      " Things: ",
+      "things://",
+      "things:///",
+      "things:///show?id=today",
+    ]) {
+      expect(normalizeAppScheme(value)).toBe("things");
+    }
     for (const scheme of [
       "javascript",
       "data",
