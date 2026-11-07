@@ -1589,11 +1589,13 @@ function AllowedAppSchemesSetting() {
   const [error, setError] = useState<string | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const restoreAddButtonFocus = useRef(false);
   const inputId = useId();
   const hintId = useId();
   const errorId = useId();
 
   const cancel = () => {
+    restoreAddButtonFocus.current = true;
     setAdding(false);
     setDraft("");
     setError(null);
@@ -1703,7 +1705,13 @@ function AllowedAppSchemesSetting() {
           </form>
         ) : (
           <Button
-            ref={addButtonRef}
+            ref={(button) => {
+              addButtonRef.current = button;
+              if (button && restoreAddButtonFocus.current) {
+                restoreAddButtonFocus.current = false;
+                button.focus();
+              }
+            }}
             type="button"
             size="sm"
             variant="outline"
