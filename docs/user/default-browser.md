@@ -18,10 +18,13 @@ A link that launches T3 Code waits until the app has connected to its environmen
 
 ## Open links in other apps
 
-On web and desktop, add scheme names under **Settings → Browser → App links → Allowed app
-schemes**, separated by commas, for example `things, obsidian`. Clicking matching chat links
-opens the app on the device where you click. The app must be installed. Your browser may ask
-before opening it. These permissions apply only to this client; remove a name to revoke it.
+On web and desktop, choose **Settings → Browser → App links → Add app scheme**. Enter a name
+such as `things` or paste an app link such as `things:///show?id=today`, then select **Add**.
+Add each app separately; the list shows all allowed schemes. Use a row's remove button to revoke
+its permission.
+
+Clicking matching chat links opens the app on the device where you click. The app must be installed.
+Your browser may ask before opening it. These permissions apply only to this client.
 
 Allow only apps you trust: their links may perform actions as well as navigate. Executable,
 embedded-content, and reserved file/editor schemes cannot be added.

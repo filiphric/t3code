@@ -40,9 +40,9 @@ import {
 import { usePrimaryManagedPolicy } from "~/state/managedPolicy";
 import { isValidSearchUrlTemplate } from "@t3tools/shared/preview";
 import { PREVIEW_VIEWPORT_PRESETS } from "@t3tools/shared/previewViewport";
-import { MoreVertical, Plus as PlusIcon } from "lucide-react";
+import { MoreVertical, Plus as PlusIcon, X as XIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { ScreenRotationIcon } from "~/browser/ScreenRotationIcon";
 import { resolveEnvironmentOptionLabel } from "~/components/BranchToolbar.logic";
@@ -87,6 +87,7 @@ import {
 } from "../ui/alert-dialog";
 import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
+import { Input } from "../ui/input";
 import { NumberField, NumberFieldGroup, NumberFieldInput } from "../ui/number-field";
 import {
   Select,
@@ -1580,35 +1581,124 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
 function AllowedAppSchemesSetting() {
   const schemes = useClientSettings((settings) => settings.allowedAppSchemes);
   const updateSettings = useUpdatePrimarySettings();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
+
+  const cancel = () => {
+    setAdding(false);
+    setDraft("");
+    setError(null);
+  };
+  const add = () => {
+    const scheme = normalizeAppScheme(draft);
+    if (!scheme) {
+      setError(
+        "Enter an app scheme such as things or obsidian, or paste an app link. System and executable schemes cannot be allowed.",
+      );
+      return;
+    }
+    if (schemes.includes(scheme)) {
+      setError(`${scheme} is already in your list.`);
+      return;
+    }
+    updateSettings({ allowedAppSchemes: [...schemes, scheme] });
+    cancel();
+  };
+
   return (
     <SettingsRow
-      title="Allowed app schemes"
-      description="Allow app links on this device. Enter names or links separated by commas, e.g. things or things:///. Remove a name to revoke permission. Links may perform actions in the app."
-      control={
-        <DraftInput
-          aria-label="Allowed app schemes"
-          value={schemes.join(", ")}
-          onCommit={(value) => {
-            const values = value
-              .split(",")
-              .map((entry) => entry.trim())
-              .filter(Boolean);
-            if (values.some((entry) => normalizeAppScheme(entry) === null)) {
-              toastManager.add({
-                type: "error",
-                title: "Invalid or reserved app scheme",
-                description:
-                  "Enter a scheme such as things, or an app link such as things:///show?id=today. System and executable schemes cannot be allowed.",
-              });
-              return;
-            }
-            updateSettings({
-              allowedAppSchemes: [...new Set(values.map((entry) => normalizeAppScheme(entry)!))],
-            });
-          }}
-        />
-      }
-    />
+      title="Allowed app links"
+      description="Choose which apps chat links can open on this device. Links may perform actions in the app. Remove an app to stop allowing its links."
+    >
+      <div className="space-y-3 py-3">
+        {schemes.length > 0 ? (
+          <ul
+            aria-label="Allowed app schemes"
+            className="divide-y divide-border rounded-lg border border-border"
+          >
+            {schemes.map((scheme) => (
+              <li key={scheme} className="flex items-center justify-between gap-3 px-3 py-2">
+                <code className="text-sm">{scheme}://</code>
+                <Button
+                  type="button"
+                  variant="ghost-destructive"
+                  size="icon-sm"
+                  aria-label={`Remove ${scheme}`}
+                  onClick={() =>
+                    updateSettings({
+                      allowedAppSchemes: schemes.filter((entry) => entry !== scheme),
+                    })
+                  }
+                >
+                  <XIcon />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No apps added yet. Add one to enable its links in chat.
+          </p>
+        )}
+        {adding ? (
+          <form
+            className="space-y-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              add();
+            }}
+          >
+            <label htmlFor={inputId} className="text-xs font-medium">
+              App scheme or link
+            </label>
+            <div className="flex flex-wrap items-start gap-2">
+              <div className="min-w-40 flex-1">
+                <Input
+                  id={inputId}
+                  autoFocus
+                  value={draft}
+                  placeholder="e.g. things or obsidian://"
+                  aria-invalid={error !== null}
+                  aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+                  onValueChange={(value) => {
+                    setDraft(value);
+                    setError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancel();
+                    }
+                  }}
+                />
+              </div>
+              <Button type="submit" size="sm" disabled={!draft.trim()}>
+                Add
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={cancel}>
+                Cancel
+              </Button>
+            </div>
+            <p id={hintId} className="text-xs text-muted-foreground">
+              For Things, enter things or paste a things:// link. Add each app separately.
+            </p>
+            {error ? (
+              <p id={errorId} role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        ) : (
+          <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
+            <PlusIcon /> Add app scheme
+          </Button>
+        )}
+      </div>
+    </SettingsRow>
   );
 }
 
