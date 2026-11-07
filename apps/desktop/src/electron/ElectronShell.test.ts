@@ -1,5 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { DesktopClientSettings } from "../settings/DesktopClientSettings.ts";
 import { beforeEach, vi } from "vite-plus/test";
 
 const { openExternalMock, writeTextMock } = vi.hoisted(() => ({
@@ -19,6 +23,29 @@ vi.mock("electron", () => ({
 import * as ElectronShell from "./ElectronShell.ts";
 
 describe("ElectronShell", () => {
+  it.effect("enforces saved app permissions and revocation at OS dispatch", () =>
+    Effect.gen(function* () {
+      openExternalMock.mockReset();
+      openExternalMock.mockResolvedValue(undefined);
+      const schemes = yield* Ref.make<readonly string[]>(["things"]);
+      const service = {
+        get: Ref.get(schemes).pipe(
+          Effect.map((allowedAppSchemes) =>
+            Option.some({ ...DEFAULT_CLIENT_SETTINGS, allowedAppSchemes }),
+          ),
+        ),
+        set: () => Effect.void,
+      };
+      const shell = yield* ElectronShell.ElectronShell;
+      const open = (href: string) =>
+        shell.openExternal(href).pipe(Effect.provideService(DesktopClientSettings, service));
+      assert.equal(yield* open("things:///show?id=today"), true);
+      assert.equal(yield* open("unapproved-app://open"), false);
+      yield* Ref.set(schemes, []);
+      assert.equal(yield* open("things:///show?id=today"), false);
+      assert.deepEqual(openExternalMock.mock.calls, [["things:///show?id=today"]]);
+    }).pipe(Effect.provide(ElectronShell.layer)),
+  );
   beforeEach(() => {
     openExternalMock.mockReset();
     writeTextMock.mockReset();

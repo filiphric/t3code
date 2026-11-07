@@ -1,3 +1,4 @@
+import { normalizeAppScheme } from "@t3tools/shared/externalAppLinks";
 import { DeviceHostUpdates } from "../device/DeviceHostUpdates";
 import { DeviceToolVersions } from "../device/DeviceToolVersions";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
@@ -1576,12 +1577,45 @@ function BrowserProfilesSetting({ disabled }: { readonly disabled: boolean }) {
   );
 }
 
+function AllowedAppSchemesSetting() {
+  const schemes = useClientSettings((settings) => settings.allowedAppSchemes);
+  const updateSettings = useUpdatePrimarySettings();
+  return (
+    <SettingsRow
+      title="Allowed app schemes"
+      description="Allow chat links to open apps on this device. Enter scheme names separated by commas, such as things, obsidian. Removing a name revokes permission. Links may perform actions in the app."
+      control={
+        <DraftInput
+          aria-label="Allowed app schemes"
+          value={schemes.join(", ")}
+          onCommit={(value) => {
+            const values = value
+              .split(",")
+              .map((entry) => entry.trim())
+              .filter(Boolean);
+            if (values.some((entry) => normalizeAppScheme(entry) === null)) {
+              toastManager.add({ type: "error", title: "Invalid or reserved app scheme" });
+              return;
+            }
+            updateSettings({
+              allowedAppSchemes: [...new Set(values.map((entry) => normalizeAppScheme(entry)!))],
+            });
+          }}
+        />
+      }
+    />
+  );
+}
+
 export function BrowserSettingsPanel() {
   const desktopOnly = !isElectron;
   const desktopOnlyMessage = desktopOnly ? "Only available in the desktop app." : undefined;
 
   return (
     <SettingsPageContainer>
+      <SettingsSection id="app-links" title="App links">
+        <AllowedAppSchemesSetting />
+      </SettingsSection>
       <SettingsSection id="browser-agent-access" title="Agent access">
         <AgentBrowserAccessSetting />
       </SettingsSection>

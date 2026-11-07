@@ -15,3 +15,13 @@ HTML files you open from Finder open the same way. [Prompt links](prompt-links.m
 app.t3.codes open in the app as a draft.
 
 A link that launches T3 Code waits until the app has connected to its environment, then opens.
+
+## Open links in other apps
+
+On web and desktop, add scheme names under **Settings → Browser → App links → Allowed app
+schemes**, separated by commas, for example `things, obsidian`. Clicking matching chat links
+opens the app on the device where you click. The app must be installed. Your browser may ask
+before opening it. These permissions apply only to this client; remove a name to revoke it.
+
+Allow only apps you trust: their links may perform actions as well as navigate. Executable,
+embedded-content, and reserved file/editor schemes cannot be added.

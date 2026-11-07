@@ -90,6 +90,8 @@ import type {
 } from "react-markdown";
 import { createIncrementalMarkdownPlugin } from "../markdown-incremental";
 import type { Pluggable, PluggableList } from "unified";
+import { isAllowedAppHref } from "@t3tools/shared/externalAppLinks";
+import { appSchemeRehypePlugins } from "@t3tools/shared/markdownPipeline";
 import { defaultUrlTransform } from "react-markdown";
 import { parseAssistantCitationHref } from "@t3tools/shared/assistantCitations";
 import { parseComposerContextHref } from "@t3tools/shared/composerContextReferences";
@@ -133,7 +135,7 @@ import { openInEditorMenuLabel } from "../editorLabels";
 import { resolveDiffThemeName } from "../lib/diffRendering";
 import { RenderErrorBoundary } from "./RenderErrorBoundary";
 import { useRenderedAppearance } from "../hooks/useTheme";
-import { useClientSettings } from "../hooks/useSettings";
+import { useClientSettings, getClientSettings } from "../hooks/useSettings";
 import { chatMarkdownClipboardPayload } from "../markdown-clipboard";
 import {
   resolveInlineCodeFileLinkMeta,
@@ -1177,6 +1179,22 @@ const CHAT_MARKDOWN_COMPONENTS = {
               return;
             }
             if (event.defaultPrevented) return;
+            if (isAllowedAppHref(href, getClientSettings().allowedAppSchemes)) {
+              if (isElectron) {
+                event.preventDefault();
+                event.stopPropagation();
+                void readLocalApi()
+                  ?.shell.openExternal(href)
+                  .catch(() => {
+                    toastManager.add({
+                      type: "error",
+                      title: "Could not open app",
+                      description: "Check that an app is installed for this scheme.",
+                    });
+                  });
+              }
+              return;
+            }
             if (
               resolveLinkTarget({
                 url: href,
@@ -1674,7 +1692,11 @@ const markdownRenderers = new WeakMap<
   WeakMap<PluggableList, ReturnType<typeof createMarkdownRenderer>>
 >();
 
-function markdownRenderer(remarkPlugins: PluggableList, rehypePlugins: PluggableList) {
+function markdownRenderer(
+  remarkPlugins: PluggableList,
+  rehypePlugins: PluggableList,
+  schemes: readonly string[],
+) {
   let byRehype = markdownRenderers.get(remarkPlugins);
   if (!byRehype) markdownRenderers.set(remarkPlugins, (byRehype = new WeakMap()));
   let renderer = byRehype.get(rehypePlugins);
@@ -1683,7 +1705,8 @@ function markdownRenderer(remarkPlugins: PluggableList, rehypePlugins: Pluggable
       remarkPlugins,
       rehypePlugins,
       components: CHAT_MARKDOWN_COMPONENTS,
-      urlTransform: markdownUrlTransform,
+      urlTransform: (href, key) =>
+        key === "href" && isAllowedAppHref(href, schemes) ? href : markdownUrlTransform(href),
     });
     byRehype.set(rehypePlugins, renderer);
   }
@@ -1705,14 +1728,25 @@ const MarkdownSource = memo(function MarkdownSource({
   /** The text will not change again; streamed text would only fill the cache with prefixes. */
   cache: boolean;
 }) {
+  const schemes = useClientSettings((settings) => settings.allowedAppSchemes);
+  const configuredPlugins = (() => {
+    if (rehypePlugins !== CHAT_MARKDOWN_RENDER_REHYPE_PLUGINS) return [...rehypePlugins];
+    return [
+      ...appSchemeRehypePlugins(schemes),
+      rehypeHeadingIds,
+      rehypeTextDirection,
+      rehypeChipPunctuation,
+    ];
+  })();
   // Per-instance plugins, such as the incremental parser, set up their state on every render.
   const render = shared
-    ? markdownRenderer(remarkPlugins, rehypePlugins)
+    ? markdownRenderer(remarkPlugins, configuredPlugins, schemes)
     : createMarkdownRenderer({
         remarkPlugins,
-        rehypePlugins,
+        rehypePlugins: configuredPlugins,
         components: CHAT_MARKDOWN_COMPONENTS,
-        urlTransform: markdownUrlTransform,
+        urlTransform: (href, key) =>
+          key === "href" && isAllowedAppHref(href, schemes) ? href : markdownUrlTransform(href),
       });
   return (
     <ChatMarkdownTextContext value={text}>{render(text, shared && cache)}</ChatMarkdownTextContext>

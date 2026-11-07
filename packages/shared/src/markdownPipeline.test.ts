@@ -290,3 +290,18 @@ it("moves a <picture>'s color-scheme sources onto its <img>, which the renderer 
     { dataLocalSrc: String.raw`C:\shots\light.png`, dataDarkSrc: "file:///C:/shots/dark.png" },
   ]);
 });
+
+it("preserves only configured app schemes through HTML sanitization", async () => {
+  const { appSchemeRehypePlugins } = await import("./markdownPipeline.ts");
+  const source = '[Today](THINGS:///show?id=a%2Fb) <a href="javascript:alert(1)">Bad</a>';
+  for (const schemes of [[], ["things"]]) {
+    const processor = unified()
+      .use(remarkParse)
+      .use(remarkRehype, { allowDangerousHtml: true })
+      .use(appSchemeRehypePlugins(schemes));
+    const tree = await processor.run(processor.parse(source));
+    const serialized = JSON.stringify(tree);
+    expect(serialized.includes('"href":"things:///show?id=a%2Fb"')).toBe(schemes.length > 0);
+    expect(serialized).not.toContain('"href":"javascript:');
+  }
+});

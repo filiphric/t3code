@@ -10,6 +10,8 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
 import * as Electron from "electron";
+import { isAllowedAppHref } from "@t3tools/shared/externalAppLinks";
+import { DesktopClientSettings } from "../settings/DesktopClientSettings.ts";
 
 // Remote editor deep links must reach the OS handler.
 const SAFE_WEB_PROTOCOLS = new Set(["http:", "https:"]);
@@ -37,14 +39,19 @@ const isRemoteEditorUrl = (url: URL) =>
         url.pathname.startsWith("/ssh-remote+") &&
         url.pathname.length > "/ssh-remote+".length);
 
-export function parseSafeExternalUrl(rawUrl: unknown): Option.Option<string> {
+export function parseSafeExternalUrl(
+  rawUrl: unknown,
+  schemes: readonly string[] = [],
+): Option.Option<string> {
   if (typeof rawUrl !== "string") {
     return Option.none();
   }
 
   try {
     const url = new URL(rawUrl);
-    return SAFE_WEB_PROTOCOLS.has(url.protocol) || isRemoteEditorUrl(url)
+    return SAFE_WEB_PROTOCOLS.has(url.protocol) ||
+      isRemoteEditorUrl(url) ||
+      isAllowedAppHref(rawUrl, schemes)
       ? Option.some(url.href)
       : Option.none();
   } catch {
@@ -63,8 +70,13 @@ export class ElectronShell extends Context.Service<
 
 /** @public */
 export const make = ElectronShell.of({
-  openExternal: Effect.fn("ElectronShell.openExternal")(function (rawUrl) {
-    return Option.match(parseSafeExternalUrl(rawUrl), {
+  openExternal: Effect.fn("ElectronShell.openExternal")(function* (rawUrl) {
+    const service = yield* Effect.serviceOption(DesktopClientSettings);
+    const settings = Option.isSome(service)
+      ? yield* service.value.get.pipe(Effect.orElseSucceed(() => Option.none()))
+      : Option.none();
+    const schemes = Option.isSome(settings) ? settings.value.allowedAppSchemes : [];
+    return yield* Option.match(parseSafeExternalUrl(rawUrl, schemes), {
       onNone: () => Effect.succeed(false),
       onSome: (externalUrl) =>
         Effect.promise(() =>

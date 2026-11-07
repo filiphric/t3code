@@ -626,9 +626,7 @@ export const make = Effect.gen(function* () {
     });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
-        void runPromise(electronShell.openExternal(url));
-      }
+      void runPromise(electronShell.openExternal(url));
       return { action: "deny" };
     });
     window.webContents.on("will-navigate", (event, url) => {
@@ -642,9 +640,7 @@ export const make = Effect.gen(function* () {
       }
 
       event.preventDefault();
-      if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
-        void runPromise(electronShell.openExternal(url));
-      }
+      void runPromise(electronShell.openExternal(url));
     });
 
     const quitShortcutHandler = makeQuitShortcutHandler({

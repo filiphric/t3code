@@ -5,6 +5,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { find, html } from "property-information";
 import rehypeRaw from "rehype-raw";
+import { normalizeAppScheme, isAllowedAppHref } from "./externalAppLinks.ts";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -295,6 +296,42 @@ function rehypeRawWhenPresent(this: Processor) {
   ) => unknown;
   return (tree: MarkdownImageHastNode, file: unknown) =>
     needsHtmlParser(tree, TOP_SCOPE) ? transform(tree, file) : undefined;
+}
+
+export function appSchemeRehypePlugins(schemes: readonly string[]): PluggableList {
+  const normalizeLinks = () => (tree: MarkdownImageHastNode) => {
+    const visit = (node: MarkdownImageHastNode) => {
+      const href = node.properties?.href;
+      if (node.tagName === "a" && typeof href === "string" && isAllowedAppHref(href, schemes)) {
+        node.properties!.href = href.replace(/^[^:]+:/, (scheme) => scheme.toLowerCase());
+      }
+      node.children?.forEach(visit);
+    };
+    visit(tree);
+  };
+  return CHAT_MARKDOWN_REHYPE_PLUGINS.flatMap((plugin) =>
+    Array.isArray(plugin) && plugin[0] === rehypeSanitize
+      ? [
+          normalizeLinks,
+          [
+            rehypeSanitize,
+            {
+              ...CHAT_MARKDOWN_SANITIZE_SCHEMA,
+              protocols: {
+                ...CHAT_MARKDOWN_SANITIZE_SCHEMA.protocols,
+                href: [
+                  ...CHAT_MARKDOWN_SANITIZE_SCHEMA.protocols.href,
+                  ...schemes.flatMap((value) => {
+                    const scheme = normalizeAppScheme(value);
+                    return scheme ? [scheme] : [];
+                  }),
+                ],
+              },
+            },
+          ],
+        ]
+      : [plugin],
+  );
 }
 
 export const CHAT_MARKDOWN_REHYPE_PLUGINS: PluggableList = [

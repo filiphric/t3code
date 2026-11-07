@@ -542,6 +542,10 @@
     "./speech": {
       "types": "./src/speech.ts",
       "import": "./src/speech.ts"
+    },
+    "./externalAppLinks": {
+      "types": "./src/externalAppLinks.ts",
+      "import": "./src/externalAppLinks.ts"
     }
   },
   "scripts": {
