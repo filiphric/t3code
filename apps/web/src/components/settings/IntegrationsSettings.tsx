@@ -1584,6 +1584,8 @@ function AllowedAppSchemesSetting() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const hintId = useId();
   const errorId = useId();
@@ -1617,7 +1619,7 @@ function AllowedAppSchemesSetting() {
       <div className="space-y-3 py-3">
         {schemes.length > 0 ? (
           <ul
-            aria-label="Allowed app schemes"
+            aria-label="Allowed app links"
             className="divide-y divide-border rounded-lg border border-border"
           >
             {schemes.map((scheme) => (
@@ -1628,11 +1630,12 @@ function AllowedAppSchemesSetting() {
                   variant="ghost-destructive"
                   size="icon-sm"
                   aria-label={`Remove ${scheme}`}
-                  onClick={() =>
+                  onClick={() => {
+                    (addButtonRef.current ?? inputRef.current)?.focus();
                     updateSettings({
                       allowedAppSchemes: schemes.filter((entry) => entry !== scheme),
-                    })
-                  }
+                    });
+                  }}
                 >
                   <XIcon />
                 </Button>
@@ -1659,6 +1662,7 @@ function AllowedAppSchemesSetting() {
               <div className="min-w-40 flex-1">
                 <Input
                   id={inputId}
+                  ref={inputRef}
                   autoFocus
                   value={draft}
                   placeholder="e.g. things or obsidian://"
@@ -1685,7 +1689,8 @@ function AllowedAppSchemesSetting() {
               </Button>
             </div>
             <p id={hintId} className="text-xs text-muted-foreground">
-              For Things, enter things or paste a things:// link. Add each app separately.
+              Enter the part before :// in an app link, such as things or obsidian, or paste the
+              whole link. Add each app separately.
             </p>
             {error ? (
               <p id={errorId} role="alert" className="text-xs text-destructive">
@@ -1694,7 +1699,13 @@ function AllowedAppSchemesSetting() {
             ) : null}
           </form>
         ) : (
-          <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
+          <Button
+            ref={addButtonRef}
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAdding(true)}
+          >
             <PlusIcon /> Add app scheme
           </Button>
         )}
