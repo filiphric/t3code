@@ -319,6 +319,7 @@ function layerTest(input: {
         Layer.succeed(ElectronShell.ElectronShell, {
           openExternal: (url) =>
             Effect.sync(() => {
+              if (Option.isNone(ElectronShell.parseSafeExternalUrl(url))) return false;
               input.openedExternalUrls?.push(url);
               return true;
             }),
